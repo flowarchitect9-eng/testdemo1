@@ -1,0 +1,5 @@
+python-binance>=1.0.19
+pandas>=2.2.0
+pandas-ta>=0.3.14b
+psycopg2-binary>=2.9.9
+requests>=2.31.0

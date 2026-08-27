@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: algo_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: algo_redis
+    restart: always
+    ports:
+      - "6379:6379"
+
+  trading-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile.bot
+    container_name: algo_trading_bot
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - TRADING_MODE=TESTNET
+      - ENABLE_REAL_MONEY_TRADING=false
+      - BINANCE_API_KEY=${BINANCE_API_KEY}
+      - BINANCE_API_SECRET=${BINANCE_API_SECRET}
+      - DATABASE_URL=postgresql://postgres:postgrespassword@postgres:5432/postgres
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+
+  dashboard-backend:
+    build:
+      context: ./dashboard/backend
+    container_name: algo_dashboard_backend
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - DATABASE_URL=postgresql://postgres:postgrespassword@postgres:5432/postgres
+
+  dashboard-frontend:
+    build:
+      context: ./dashboard/frontend
+    container_name: algo_dashboard_frontend
+    restart: always
+    ports:
+      - "3000:80"
+
+volumes:
+  postgres_data:
